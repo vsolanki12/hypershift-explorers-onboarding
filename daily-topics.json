@@ -3,11 +3,11 @@
     "day": 1,
     "title": "What is HyperShift & Why It Exists",
     "section": "1",
-    "about": "Imagine running hundreds of OpenShift clusters but instead of each needing its own set of master nodes, all control planes share one big cluster as pods. That is HyperShift — it decouples the control plane from workers, cutting provisioning from 30-45 min to ~10-15 min.",
+    "about": "Imagine running hundreds of OpenShift clusters but instead of each needing its own set of master nodes, all control planes share one big cluster as pods. That is HyperShift \u2014 it decouples the control plane from workers, cutting provisioning from 30-45 min to ~10-15 min.",
     "key_points": [
       "Standalone OCP: every cluster needs 3+ master nodes just for the control plane",
       "HyperShift: control planes run as regular pods on a shared management cluster",
-      "Guest clusters have ZERO master nodes — only workers",
+      "Guest clusters have ZERO master nodes \u2014 only workers",
       "This is the foundation behind ROSA HCP (AWS) and ARO HCP (Azure)"
     ],
     "why_it_matters": "This architecture is the core of everything our team builds. Every bug, feature, and design decision traces back to this decoupling. When a cluster has issues, the control plane pods live on the management cluster, not the guest.",
@@ -15,7 +15,8 @@
       "api/hypershift/v1beta1/hostedcluster_types.go"
     ],
     "explore_hint": "Compare the 'Standalone OpenShift' vs 'HyperShift Model' table in Section 1 of the onboarding guide.",
-    "guide_section": "Section 1: What is HyperShift?"
+    "guide_section": "Section 1: What is HyperShift?",
+    "guide_anchor": "1-what-is-hypershift"
   },
   {
     "day": 2,
@@ -35,7 +36,8 @@
       "api/hypershift/v1beta1/nodepool_types.go"
     ],
     "explore_hint": "Open each type file and compare their Spec structs. Notice how HCP spec mirrors HC spec.",
-    "guide_section": "Section 2: Key Concepts"
+    "guide_section": "Section 2: Key Concepts",
+    "guide_anchor": "2-key-concepts"
   },
   {
     "day": 3,
@@ -44,7 +46,7 @@
     "about": "HyperShift splits responsibilities between two clusters: the management cluster runs all the operators and control plane pods, while the guest cluster is what end users consume and only has worker nodes. Each hosted cluster gets its own isolated namespace for its control plane components.",
     "key_points": [
       "Management Cluster: runs HyperShift operators + all CP pods for every hosted cluster",
-      "Guest Cluster: the end-user cluster — only has worker nodes, no masters",
+      "Guest Cluster: the end-user cluster \u2014 only has worker nodes, no masters",
       "CP Namespace: auto-created as '{hc-namespace}-{hc-name}' (e.g., clusters-my-cluster)",
       "HyperShift Operator lives in 'hypershift' namespace, user CRs in 'clusters'"
     ],
@@ -53,14 +55,15 @@
       "hypershift-operator/controllers/manifests/manifests.go",
       "hypershift-operator/main.go"
     ],
-    "explore_hint": "Read the HostedControlPlaneNamespace() function in manifests.go — a simple but critical naming convention used everywhere.",
-    "guide_section": "Section 2: Key Concepts — Glossary"
+    "explore_hint": "Read the HostedControlPlaneNamespace() function in manifests.go \u2014 a simple but critical naming convention used everywhere.",
+    "guide_section": "Section 2: Key Concepts \u2014 Glossary",
+    "guide_anchor": "glossary"
   },
   {
     "day": 4,
     "title": "Overall Architecture & Namespace Layout",
     "section": "3",
-    "about": "The physical layout of HyperShift boils down to three namespaces on the management cluster. Understanding which namespace holds what is the fastest path to effective debugging — when something breaks, you need to know where to look.",
+    "about": "The physical layout of HyperShift boils down to three namespaces on the management cluster. Understanding which namespace holds what is the fastest path to effective debugging \u2014 when something breaks, you need to know where to look.",
     "key_points": [
       "'hypershift' namespace: HyperShift Operator Deployment lives here",
       "'clusters' namespace: user creates HostedCluster and NodePool CRs here",
@@ -73,7 +76,8 @@
       "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go"
     ],
     "explore_hint": "On a running cluster, try: oc get ns | grep clusters and then oc get pods -n clusters-<name>.",
-    "guide_section": "Section 3: Overall Architecture"
+    "guide_section": "Section 3: Overall Architecture",
+    "guide_anchor": "3-overall-architecture"
   },
   {
     "day": 5,
@@ -92,13 +96,14 @@
       "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
     ],
     "explore_hint": "Look at registerComponents() function (~line 236 in hostedcontrolplane_controller.go) to see the full list of ~40 components.",
-    "guide_section": "Section 3-4: Architecture & Main Components"
+    "guide_section": "Section 3-4: Architecture & Main Components",
+    "guide_anchor": "41-hypershift-operator-ho"
   },
   {
     "day": 6,
-    "title": "HyperShift Operator (HO) — The 5 Controllers",
+    "title": "HyperShift Operator (HO) \u2014 The 5 Controllers",
     "section": "4.1",
-    "about": "The HyperShift Operator is not a single controller — it bundles 5 controllers, each responsible for a different aspect of cluster management. The HostedCluster and NodePool controllers are the two you will interact with most, handling cluster lifecycle and worker node management respectively.",
+    "about": "The HyperShift Operator is not a single controller \u2014 it bundles 5 controllers, each responsible for a different aspect of cluster management. The HostedCluster and NodePool controllers are the two you will interact with most, handling cluster lifecycle and worker node management respectively.",
     "key_points": [
       "HostedCluster controller: the big one (~5200 lines), manages full lifecycle",
       "NodePool controller: manages CAPI machines, ignition tokens, rolling upgrades",
@@ -114,15 +119,16 @@
       "hypershift-operator/controllers/scheduler/util/scheduler.go"
     ],
     "explore_hint": "Start with the Reconcile() method (~line 337) in the HC controller. Follow the key sub-functions: reconcileHostedControlPlane(), reconcileControlPlaneOperator().",
-    "guide_section": "Section 4.1: HyperShift Operator"
+    "guide_section": "Section 4.1: HyperShift Operator",
+    "guide_anchor": "41-hypershift-operator-ho"
   },
   {
     "day": 7,
-    "title": "Control Plane Operator (CPO) — Managing 40 Components",
+    "title": "Control Plane Operator (CPO) \u2014 Managing 40 Components",
     "section": "4.2",
-    "about": "The CPO is the workhorse that runs inside each cluster's CP namespace. It reads the HostedControlPlane CR like a blueprint and deploys everything needed: etcd for storage, KAS for the API, scheduler, controllers, networking, and more. The dependency chain matters — components start in a specific order.",
+    "about": "The CPO is the workhorse that runs inside each cluster's CP namespace. It reads the HostedControlPlane CR like a blueprint and deploys everything needed: etcd for storage, KAS for the API, scheduler, controllers, networking, and more. The dependency chain matters \u2014 components start in a specific order.",
     "key_points": [
-      "One CPO instance per hosted cluster — runs as a Deployment in the CP namespace",
+      "One CPO instance per hosted cluster \u2014 runs as a Deployment in the CP namespace",
       "Reads the HostedControlPlane CR to know what to deploy and configure",
       "4 components start without KAS: etcd, PKI, featuregate-generator, router",
       "Everything else waits for KAS to be available before starting",
@@ -133,13 +139,14 @@
       "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
     ],
     "explore_hint": "Find registerComponents() to see the full component list. Then look at the dependency graph in Section 6.2 of the onboarding guide.",
-    "guide_section": "Section 4.2: Control Plane Operator"
+    "guide_section": "Section 4.2: Control Plane Operator",
+    "guide_anchor": "42-control-plane-operator-cpo"
   },
   {
     "day": 8,
-    "title": "CPOv2 Framework — The Declarative Component Model",
+    "title": "CPOv2 Framework \u2014 The Declarative Component Model",
     "section": "4.3",
-    "about": "Instead of writing reconciliation logic from scratch for each of the 40 components, HyperShift uses a declarative framework called CPOv2. You describe what a component needs (dependencies, config, sidecars) using a builder pattern, and the framework handles the rest — reconciliation, status tracking, and ordering.",
+    "about": "Instead of writing reconciliation logic from scratch for each of the 40 components, HyperShift uses a declarative framework called CPOv2. You describe what a component needs (dependencies, config, sidecars) using a builder pattern, and the framework handles the rest \u2014 reconciliation, status tracking, and ordering.",
     "key_points": [
       "Builder pattern: NewDeploymentComponent(name).WithDependencies(...).Build()",
       "Predicates: enable/disable components based on cluster config",
@@ -155,13 +162,14 @@
       "support/controlplane-component/deployment.go"
     ],
     "explore_hint": "Compare a simple component (v2/kube_scheduler/) with a complex one (v2/kas/) to see how the framework scales.",
-    "guide_section": "Section 4.3: CPOv2 Framework"
+    "guide_section": "Section 4.3: CPOv2 Framework",
+    "guide_anchor": "43-cpov2-framework"
   },
   {
     "day": 9,
-    "title": "PKI Operator — Certificate Management",
+    "title": "PKI Operator \u2014 Certificate Management",
     "section": "4.4",
-    "about": "Every secure connection in a hosted cluster relies on certificates — API server TLS, etcd peer communication, kubelet authentication. The PKI operator manages all of this automatically: rotating CAs, signing CSRs, and handling the break-glass access mechanism that lets SREs access clusters in emergencies.",
+    "about": "Every secure connection in a hosted cluster relies on certificates \u2014 API server TLS, etcd peer communication, kubelet authentication. The PKI operator manages all of this automatically: rotating CAs, signing CSRs, and handling the break-glass access mechanism that lets SREs access clusters in emergencies.",
     "key_points": [
       "CertRotation controller: auto-rotates CAs and leaf certs using library-go",
       "CertificateSigning: signs CSRs for break-glass access (emergency cluster access)",
@@ -169,20 +177,21 @@
       "CSR Approval: auto-approves CSRs matching known signer patterns",
       "All PKI sub-controllers are wired together in operator.go"
     ],
-    "why_it_matters": "Certificate issues cause some of the most confusing failures — components cannot communicate, API servers reject connections. Understanding the PKI operator helps you debug TLS errors and certificate rotation issues.",
+    "why_it_matters": "Certificate issues cause some of the most confusing failures \u2014 components cannot communicate, API servers reject connections. Understanding the PKI operator helps you debug TLS errors and certificate rotation issues.",
     "code_paths": [
       "control-plane-pki-operator/operator.go",
       "control-plane-pki-operator/certrotationcontroller/",
       "control-plane-pki-operator/certificatesigningcontroller/"
     ],
     "explore_hint": "Start with operator.go to see how all sub-controllers are wired together. Then look at certificates/ for signer definitions.",
-    "guide_section": "Section 4.4: PKI Operator"
+    "guide_section": "Section 4.4: PKI Operator",
+    "guide_anchor": "44-pki-operator"
   },
   {
     "day": 10,
-    "title": "Ignition Server — How Worker Nodes Bootstrap",
+    "title": "Ignition Server \u2014 How Worker Nodes Bootstrap",
     "section": "4.5",
-    "about": "When a new worker node boots, it is a blank machine that needs to know how to configure itself. The Ignition Server solves this — it is an HTTPS server that generates and serves ignition configs (JSON documents describing the node's desired state) to new machines during their first boot.",
+    "about": "When a new worker node boots, it is a blank machine that needs to know how to configure itself. The Ignition Server solves this \u2014 it is an HTTPS server that generates and serves ignition configs (JSON documents describing the node's desired state) to new machines during their first boot.",
     "key_points": [
       "NodePool controller creates a token Secret with: UUID, release image, config",
       "TokenSecretReconciler generates ignition payload via MCO binaries",
@@ -198,13 +207,14 @@
       "ignition-server/controllers/cache.go"
     ],
     "explore_hint": "Start with start.go to understand the HTTP handler, then follow the flow into tokensecret_controller.go.",
-    "guide_section": "Section 4.5: Ignition Server"
+    "guide_section": "Section 4.5: Ignition Server",
+    "guide_anchor": "45-ignition-server"
   },
   {
     "day": 11,
     "title": "HostedCluster Creation Flow",
     "section": "5.1",
-    "about": "Creating a hosted cluster is a multi-step orchestration between the HO and CPO. The HO sets up the stage — namespace, secrets, networking — and then the CPO takes over to deploy all the control plane components. Think of it as the HO building the house, and the CPO furnishing every room.",
+    "about": "Creating a hosted cluster is a multi-step orchestration between the HO and CPO. The HO sets up the stage \u2014 namespace, secrets, networking \u2014 and then the CPO takes over to deploy all the control plane components. Think of it as the HO building the house, and the CPO furnishing every room.",
     "key_points": [
       "HO validates the HC spec (release image, config)",
       "Creates CP namespace and copies secrets (pull-secret, SSH key, encryption key)",
@@ -218,13 +228,14 @@
       "hypershift-operator/controllers/hostedcluster/network_policies.go"
     ],
     "explore_hint": "Follow the creation flow: Reconcile() (~line 337) -> reconcileHostedControlPlane() (~line 2404) -> reconcileControlPlaneOperator().",
-    "guide_section": "Section 5.1: Creation"
+    "guide_section": "Section 5.1: Creation",
+    "guide_anchor": "51-creation"
   },
   {
     "day": 12,
     "title": "Steady State & Upgrade Model",
     "section": "5.2-5.3",
-    "about": "Once a cluster is running, HyperShift continuously reconciles to keep things healthy. The real power shows during upgrades — you can upgrade the control plane and workers independently. Change HC.spec.release for the control plane, change NP.spec.release for workers. They do not have to happen at the same time.",
+    "about": "Once a cluster is running, HyperShift continuously reconciles to keep things healthy. The real power shows during upgrades \u2014 you can upgrade the control plane and workers independently. Change HC.spec.release for the control plane, change NP.spec.release for workers. They do not have to happen at the same time.",
     "key_points": [
       "Steady state: CPO reconciles continuously, PKI rotates certs, NP manages nodes",
       "Control plane upgrade: change HC.spec.release -> CPO deploys new component versions",
@@ -238,13 +249,14 @@
       "api/hypershift/v1beta1/nodepool_types.go"
     ],
     "explore_hint": "Look for the 'controlPlaneRelease' field and the +rollout tags on NodePool spec fields.",
-    "guide_section": "Section 5.2-5.3: Steady State & Upgrade"
+    "guide_section": "Section 5.2-5.3: Steady State & Upgrade",
+    "guide_anchor": "52-steady-state"
   },
   {
     "day": 13,
     "title": "HostedCluster Deletion Flow",
     "section": "5.4",
-    "about": "Deleting a hosted cluster is not a simple 'kubectl delete' — it is an ordered teardown to prevent orphaned cloud resources. The HO systematically removes machines, waits for cloud cleanup, removes the control plane, and finally removes the finalizer. Getting this wrong means leaked cloud resources.",
+    "about": "Deleting a hosted cluster is not a simple 'kubectl delete' \u2014 it is an ordered teardown to prevent orphaned cloud resources. The HO systematically removes machines, waits for cloud cleanup, removes the control plane, and finally removes the finalizer. Getting this wrong means leaked cloud resources.",
     "key_points": [
       "First: CAPI machines deleted, cloud instances terminated",
       "Then: HCP deleted, CPO performs its own cleanup",
@@ -257,11 +269,12 @@
       "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go"
     ],
     "explore_hint": "The deletion flow starts at r.delete() (~line 501). Notice the conditions that track deletion progress.",
-    "guide_section": "Section 5.4: Deletion"
+    "guide_section": "Section 5.4: Deletion",
+    "guide_anchor": "54-deletion"
   },
   {
     "day": 14,
-    "title": "CPO Reconciliation Flow — The Component Loop",
+    "title": "CPO Reconciliation Flow \u2014 The Component Loop",
     "section": "6.1",
     "about": "The CPO's reconciliation is a pipeline: it fetches the HCP, runs pre-checks (etcd health, KMS validation, KAS availability), builds a context object, and then iterates through every registered component. Each component decides if it should run (predicate), checks if its dependencies are ready, and then reconciles.",
     "key_points": [
@@ -276,7 +289,8 @@
       "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
     ],
     "explore_hint": "Find the component iteration loop at ~line 1232. What happens when a component's dependency is not ready?",
-    "guide_section": "Section 6.1: CPO Reconciliation Flow"
+    "guide_section": "Section 6.1: CPO Reconciliation Flow",
+    "guide_anchor": "61-cpo-reconciliation-flow"
   },
   {
     "day": 15,
@@ -284,7 +298,7 @@
     "section": "6.2-6.3",
     "about": "Status in HyperShift flows upward like a chain: individual components report their health, the CPO aggregates these into HCP conditions, and the HO copies them to the HC that users see. When a customer says 'my cluster is degraded', you trace this chain backward to find the root cause.",
     "key_points": [
-      "KAS is the critical dependency — most components wait for it",
+      "KAS is the critical dependency \u2014 most components wait for it",
       "7 components can start without KAS: etcd, featuregate-gen, CPO, CAPI, karpenter, router",
       "Status chain: ControlPlaneComponent -> HCP conditions -> HC conditions",
       "HC conditions visible to users: Available, Progressing, Degraded",
@@ -297,31 +311,33 @@
       "api/hypershift/v1beta1/nodepool_conditions.go"
     ],
     "explore_hint": "Read checkDependencies() in status.go (~line 50), then look at hostedcluster_conditions.go for all condition types.",
-    "guide_section": "Section 6.2-6.3: Dependencies & Status"
+    "guide_section": "Section 6.2-6.3: Dependencies & Status",
+    "guide_anchor": "62-component-dependencies"
   },
   {
     "day": 16,
-    "title": "NodePool — Key Fields That Drive Behavior",
+    "title": "NodePool \u2014 Key Fields That Drive Behavior",
     "section": "7.1",
-    "about": "The NodePool spec is how users control their worker nodes. Some fields are simple (replicas = how many nodes), but others have powerful side effects — changing spec.release or spec.config triggers a rolling replacement of all nodes. Fields tagged with +rollout are the ones that cause node replacement when changed.",
+    "about": "The NodePool spec is how users control their worker nodes. Some fields are simple (replicas = how many nodes), but others have powerful side effects \u2014 changing spec.release or spec.config triggers a rolling replacement of all nodes. Fields tagged with +rollout are the ones that cause node replacement when changed.",
     "key_points": [
-      "spec.clusterName: immutable — once set, cannot be changed",
+      "spec.clusterName: immutable \u2014 once set, cannot be changed",
       "spec.release: changing this triggers a rolling update of all nodes (+rollout tag)",
       "spec.platform: cloud-specific config (AMI, instance type, disk size)",
       "spec.replicas vs spec.autoScaling: manual count or min/max auto-scaling",
       "spec.management.upgradeType: Replace (new machines) or InPlace",
-      "spec.config: MachineConfig references — changing also triggers rollout"
+      "spec.config: MachineConfig references \u2014 changing also triggers rollout"
     ],
     "why_it_matters": "Misunderstanding which fields trigger rollouts leads to unexpected node replacement or stuck upgrades. Fields with +rollout tag are the critical ones to watch.",
     "code_paths": [
       "api/hypershift/v1beta1/nodepool_types.go"
     ],
     "explore_hint": "Search for the +rollout tag in nodepool_types.go. Why is spec.clusterName immutable?",
-    "guide_section": "Section 7.1: NodePool Key Fields"
+    "guide_section": "Section 7.1: NodePool Key Fields",
+    "guide_anchor": "71-nodepool---key-fields"
   },
   {
     "day": 17,
-    "title": "Node Lifecycle — From NodePool to Running Worker",
+    "title": "Node Lifecycle \u2014 From NodePool to Running Worker",
     "section": "7.2",
     "about": "Getting a worker node from 'I want one' to 'it is running my pods' involves a surprisingly long chain: compute a config hash, create token and userdata secrets, tell CAPI to provision a machine, wait for the cloud to boot it, serve it an ignition config, and watch it join the cluster. Each step can fail independently.",
     "key_points": [
@@ -339,13 +355,14 @@
       "hypershift-operator/controllers/nodepool/capi.go"
     ],
     "explore_hint": "Read these 4 files in order: nodepool_controller.go -> config.go -> token.go -> capi.go.",
-    "guide_section": "Section 7.2: Node Lifecycle"
+    "guide_section": "Section 7.2: Node Lifecycle",
+    "guide_anchor": "72-node-lifecycle"
   },
   {
     "day": 18,
-    "title": "ClusterAPI Integration — The Resource Hierarchy",
+    "title": "ClusterAPI Integration \u2014 The Resource Hierarchy",
     "section": "7.3",
-    "about": "HyperShift does not talk to AWS, Azure, or KubeVirt directly for node management — it uses Cluster API (CAPI) as an abstraction layer. NodePool creates CAPI resources, and CAPI talks to the cloud provider. This means you need to distinguish between HyperShift bugs and CAPI bugs when node provisioning fails.",
+    "about": "HyperShift does not talk to AWS, Azure, or KubeVirt directly for node management \u2014 it uses Cluster API (CAPI) as an abstraction layer. NodePool creates CAPI resources, and CAPI talks to the cloud provider. This means you need to distinguish between HyperShift bugs and CAPI bugs when node provisioning fails.",
     "key_points": [
       "Resource chain: NodePool -> MachineDeployment -> MachineSet -> Machine",
       "Platform-specific templates: AWSMachineTemplate, AzureMachineTemplate, etc.",
@@ -353,7 +370,7 @@
       "Rolling updates triggered by DataSecretName change on MachineDeployment",
       "All CAPI resources live in the CP namespace"
     ],
-    "why_it_matters": "CAPI is a third-party project with its own lifecycle. When node provisioning fails, check Machine.status for cloud provider errors — the issue might be in CAPI, not HyperShift.",
+    "why_it_matters": "CAPI is a third-party project with its own lifecycle. When node provisioning fails, check Machine.status for cloud provider errors \u2014 the issue might be in CAPI, not HyperShift.",
     "code_paths": [
       "hypershift-operator/controllers/nodepool/capi.go",
       "hypershift-operator/controllers/nodepool/aws.go",
@@ -361,7 +378,8 @@
       "hypershift-operator/controllers/nodepool/kubevirt/kubevirt.go"
     ],
     "explore_hint": "Look at awsMachineTemplateSpec() in aws.go to see how AMI, instance type, and security groups are configured.",
-    "guide_section": "Section 7.3: ClusterAPI Integration"
+    "guide_section": "Section 7.3: ClusterAPI Integration",
+    "guide_anchor": "73-clusterapi-integration"
   },
   {
     "day": 19,
@@ -375,18 +393,19 @@
       "MachineHealthCheck: detects unhealthy nodes (8 min cloud / 16 min agent timeout)",
       "MaxUnhealthy=2: safety valve to prevent mass node replacement"
     ],
-    "why_it_matters": "When nodes are not scaling or unhealthy nodes are not being replaced, understanding these mechanisms helps you debug. MaxUnhealthy=2 is especially important — it prevents mass node replacement during transient issues.",
+    "why_it_matters": "When nodes are not scaling or unhealthy nodes are not being replaced, understanding these mechanisms helps you debug. MaxUnhealthy=2 is especially important \u2014 it prevents mass node replacement during transient issues.",
     "code_paths": [
       "hypershift-operator/controllers/nodepool/capi.go",
       "hypershift-operator/controllers/nodepool/scale_from_zero.go",
       "karpenter-operator/controllers/karpenter/karpenter_controller.go"
     ],
     "explore_hint": "Find reconcileMachineHealthCheck() in capi.go (~line 649). Note the different timeouts for cloud vs Agent platforms.",
-    "guide_section": "Section 7.4-7.5: Auto-scaling & Auto-repair"
+    "guide_section": "Section 7.4-7.5: Auto-scaling & Auto-repair",
+    "guide_anchor": "74-auto-scaling"
   },
   {
     "day": 20,
-    "title": "Platform Interface — How HyperShift Abstracts Cloud Providers",
+    "title": "Platform Interface \u2014 How HyperShift Abstracts Cloud Providers",
     "section": "8",
     "about": "HyperShift supports 7 cloud platforms through a clean Go interface. Every platform implements the same 6 methods: creating CAPI infra resources, deploying the provider, copying credentials, setting up encryption, defining RBAC, and cleaning up. This is the extension point for adding new platforms.",
     "key_points": [
@@ -401,11 +420,12 @@
       "hypershift-operator/controllers/hostedcluster/internal/platform/platform.go"
     ],
     "explore_hint": "Read the Platform interface definition and GetPlatform() (~line 91) to see platform dispatch.",
-    "guide_section": "Section 8: Supported Cloud Platforms"
+    "guide_section": "Section 8: Supported Cloud Platforms",
+    "guide_anchor": "platform-interface"
   },
   {
     "day": 21,
-    "title": "AWS Platform Deep Dive — Infrastructure & IAM",
+    "title": "AWS Platform Deep Dive \u2014 Infrastructure & IAM",
     "section": "8",
     "about": "AWS is the primary platform powering ROSA HCP. Setting up a hosted cluster on AWS requires VPC networking, Route53 DNS zones, an S3 bucket for OIDC, and 6+ IAM roles using STS. Private clusters add VPC PrivateLink into the mix. Understanding this infrastructure is essential for debugging AWS-specific issues.",
     "key_points": [
@@ -423,11 +443,12 @@
       "api/hypershift/v1beta1/aws.go"
     ],
     "explore_hint": "Look at AWSRolesRef (line 512 in aws.go) to see all IAM role ARNs that must be provided.",
-    "guide_section": "Section 8: AWS Infrastructure"
+    "guide_section": "Section 8: AWS Infrastructure",
+    "guide_anchor": "aws-infrastructure"
   },
   {
     "day": 22,
-    "title": "KubeVirt Platform — Nested Virtualization",
+    "title": "KubeVirt Platform \u2014 Nested Virtualization",
     "section": "8",
     "about": "KubeVirt lets you run hosted cluster workers as virtual machines on a Kubernetes cluster instead of cloud instances. This is useful for on-prem environments, development, and testing. The management cluster hosts CP pods while an infra cluster (can be the same) hosts the VMs as worker nodes.",
     "key_points": [
@@ -435,27 +456,28 @@
       "Management cluster hosts CP pods; infra cluster hosts VMs (can be same cluster)",
       "CDI DataVolumes provide root disks for VMs",
       "KubevirtPlatformCredentials enables external infra cluster mode",
-      "No cloud IAM needed — uses in-cluster authentication"
+      "No cloud IAM needed \u2014 uses in-cluster authentication"
     ],
     "why_it_matters": "KubeVirt is the go-to platform for on-prem and dev/test environments. It is also common in CI/CD. Understanding the dual-cluster mode (management vs infra) is essential for debugging VM provisioning issues.",
     "code_paths": [
       "hypershift-operator/controllers/hostedcluster/internal/platform/kubevirt/kubevirt.go",
       "hypershift-operator/controllers/nodepool/kubevirt/kubevirt.go"
     ],
-    "explore_hint": "Compare the KubeVirt platform implementation with the AWS one — notice how the Platform interface lets both share the same flow.",
-    "guide_section": "Section 8: KubeVirt"
+    "explore_hint": "Compare the KubeVirt platform implementation with the AWS one \u2014 notice how the Platform interface lets both share the same flow.",
+    "guide_section": "Section 8: KubeVirt",
+    "guide_anchor": "kubevirt---nested-virtualization"
   },
   {
     "day": 23,
     "title": "Cloud Controller Managers & Credential Management",
     "section": "8",
-    "about": "Each cloud platform has its own Cloud Controller Manager (CCM) that runs as a CPOv2 component. Credentials follow a strict flow: users provide them in their namespace, the HO copies them to the CP namespace, and CPO components mount them. HyperShift never owns credentials — it only copies and uses them.",
+    "about": "Each cloud platform has its own Cloud Controller Manager (CCM) that runs as a CPOv2 component. Credentials follow a strict flow: users provide them in their namespace, the HO copies them to the CP namespace, and CPO components mount them. HyperShift never owns credentials \u2014 it only copies and uses them.",
     "key_points": [
-      "CCMs are CPOv2 components — one per platform, using the standard builder pattern",
+      "CCMs are CPOv2 components \u2014 one per platform, using the standard builder pattern",
       "User provides credentials in the user namespace (alongside HC/NP CRs)",
       "HO copies credentials to the CP namespace during reconciliation",
       "CPO components mount credentials from the CP namespace",
-      "HyperShift NEVER manages/owns credentials — it copies and uses them"
+      "HyperShift NEVER manages/owns credentials \u2014 it copies and uses them"
     ],
     "why_it_matters": "Credential issues are a common source of problems, especially during rotation. The key insight: HyperShift does not manage credentials. If a credential is wrong, fix it in the user namespace and the HO will copy the update.",
     "code_paths": [
@@ -463,17 +485,18 @@
       "control-plane-operator/controllers/hostedcontrolplane/cloud/aws/providerconfig.go"
     ],
     "explore_hint": "Compare the AWS CCM component with the KubeVirt CCM to see how the CPOv2 framework handles different platforms.",
-    "guide_section": "Section 8: Cloud Controller Managers & Credentials"
+    "guide_section": "Section 8: Cloud Controller Managers & Credentials",
+    "guide_anchor": "cloud-controller-managers"
   },
   {
     "day": 24,
-    "title": "Multi-Module Structure — api/ Is a Separate Go Module",
+    "title": "Multi-Module Structure \u2014 api/ Is a Separate Go Module",
     "section": "9.1",
     "about": "This catches almost every new contributor: the api/ directory is a separate Go module with its own go.mod. If you edit a type in api/ and try to build the main module, you will get 'undefined' errors because the vendored copy is stale. The fix is always 'make update'.",
     "key_points": [
       "Root module: all operators, controllers, CLI, support packages",
       "api/ module: separate go.mod, contains all CRD types and API definitions",
-      "Root consumes api/ via vendoring — changes in api/ need 'make update'",
+      "Root consumes api/ via vendoring \u2014 changes in api/ need 'make update'",
       "DO NOT modify vendor/ directories directly",
       "GOLDEN RULE: always run 'make update' after editing anything in api/"
     ],
@@ -483,19 +506,20 @@
       "hack/workspace/go.work"
     ],
     "explore_hint": "Read api/CLAUDE.md for critical API backward compatibility rules.",
-    "guide_section": "Section 9.1: Multi-Module Structure"
+    "guide_section": "Section 9.1: Multi-Module Structure",
+    "guide_anchor": "91-multi-module-structure"
   },
   {
     "day": 25,
-    "title": "Main API Types — HostedCluster, HCP, NodePool, ControlPlaneComponent",
+    "title": "Main API Types \u2014 HostedCluster, HCP, NodePool, ControlPlaneComponent",
     "section": "9.2",
-    "about": "The API types define the contract between users and the system. HostedClusterSpec (~line 529) is the single most important struct — it contains everything a user can configure. Understanding the relationship between these types (HC creates HCP, NP creates CAPI resources) is fundamental to all work.",
+    "about": "The API types define the contract between users and the system. HostedClusterSpec (~line 529) is the single most important struct \u2014 it contains everything a user can configure. Understanding the relationship between these types (HC creates HCP, NP creates CAPI resources) is fundamental to all work.",
     "key_points": [
       "HostedClusterSpec (~line 529): everything a user configures for their cluster",
       "HostedClusterStatus (~line 2105): conditions, version info, kubeconfig ref",
-      "HCP spec mirrors HC spec — CPO reads HCP, not HC",
+      "HCP spec mirrors HC spec \u2014 CPO reads HCP, not HC",
       "ControlPlaneComponent: per-component status with Available/RolloutComplete",
-      "NodePoolSpec: release, platform, replicas, config — drives node behavior"
+      "NodePoolSpec: release, platform, replicas, config \u2014 drives node behavior"
     ],
     "why_it_matters": "Every feature request, bug report, and API review requires understanding these types. The HostedClusterSpec is the single most important struct in the codebase.",
     "code_paths": [
@@ -505,13 +529,14 @@
       "api/hypershift/v1beta1/controlplanecomponent_types.go"
     ],
     "explore_hint": "Skim HostedClusterSpec starting at ~line 529 to understand what users can configure.",
-    "guide_section": "Section 9.2: Main API Types"
+    "guide_section": "Section 9.2: Main API Types",
+    "guide_anchor": "92-main-api-types"
   },
   {
     "day": 26,
     "title": "Feature Gates & Key Annotations",
     "section": "9.3-9.4",
-    "about": "Feature gates control which API fields are available to users (e.g., Karpenter auto-scaling is behind a gate). Annotations are powerful operational levers that SREs use daily — override CPO images, force upgrades, trigger rolling restarts, adjust resource requests. These are defined at the top of hostedcluster_types.go.",
+    "about": "Feature gates control which API fields are available to users (e.g., Karpenter auto-scaling is behind a gate). Annotations are powerful operational levers that SREs use daily \u2014 override CPO images, force upgrades, trigger rolling restarts, adjust resource requests. These are defined at the top of hostedcluster_types.go.",
     "key_points": [
       "Feature gates: +openshift:enable:FeatureGate=<Name> on API fields",
       "Default vs TechPreviewNoUpgrade feature sets",
@@ -519,19 +544,20 @@
       "resource-request-override: per-container resource overrides for CP components",
       "All annotations defined in hostedcluster_types.go (lines 29-449)"
     ],
-    "why_it_matters": "Feature gates determine what users can configure. Annotations are used daily by SREs during incidents — knowing these saves time. The resource-request-override annotation alone has saved many clusters from OOM issues.",
+    "why_it_matters": "Feature gates determine what users can configure. Annotations are used daily by SREs during incidents \u2014 knowing these saves time. The resource-request-override annotation alone has saved many clusters from OOM issues.",
     "code_paths": [
       "api/hypershift/v1beta1/featuregates/featureGate-Hypershift-Default.yaml",
       "api/hypershift/v1beta1/hostedcluster_types.go"
     ],
     "explore_hint": "Read the annotation constants block at the top of hostedcluster_types.go (lines 29-449).",
-    "guide_section": "Section 9.3-9.4: Feature Gates & Annotations"
+    "guide_section": "Section 9.3-9.4: Feature Gates & Annotations",
+    "guide_anchor": "93-feature-gates"
   },
   {
     "day": 27,
     "title": "Essential Development Commands",
     "section": "10.1",
-    "about": "HyperShift has a rich Makefile with targets for building, testing, and verifying code. The most important command is 'make verify' — it runs the same checks CI does, so running it locally before pushing saves you from failed PR checks. The second most important is 'make update' after api/ changes.",
+    "about": "HyperShift has a rich Makefile with targets for building, testing, and verifying code. The most important command is 'make verify' \u2014 it runs the same checks CI does, so running it locally before pushing saves you from failed PR checks. The second most important is 'make update' after api/ changes.",
     "key_points": [
       "make build: builds all binaries",
       "make test: runs unit tests with race detection",
@@ -544,13 +570,14 @@
       "Makefile"
     ],
     "explore_hint": "Run 'make verify' on a clean checkout to see what it checks.",
-    "guide_section": "Section 10.1: Essential Commands"
+    "guide_section": "Section 10.1: Essential Commands",
+    "guide_anchor": "101-essential-commands"
   },
   {
     "day": 28,
     "title": "Workflow for API Changes",
     "section": "10.2",
-    "about": "Changing an API type is the most impactful change you can make — it affects every consumer of the HyperShift API. The workflow is strict: edit types, regenerate everything, verify consistency, and add serialization tests if you changed a field type. Every API change must be safe for both upgrades (N+1) and rollbacks (N-1).",
+    "about": "Changing an API type is the most impactful change you can make \u2014 it affects every consumer of the HyperShift API. The workflow is strict: edit types, regenerate everything, verify consistency, and add serialization tests if you changed a field type. Every API change must be safe for both upgrades (N+1) and rollbacks (N-1).",
     "key_points": [
       "Step 1: Edit types in api/hypershift/v1beta1/",
       "Step 2: make update (regenerate CRDs, vendor, clients, docs)",
@@ -563,7 +590,8 @@
       "api/hypershift/v1beta1/nodepool_types_test.go"
     ],
     "explore_hint": "Look at nodepool_types_test.go for the serialization compatibility test pattern.",
-    "guide_section": "Section 10.2: API Changes Workflow"
+    "guide_section": "Section 10.2: API Changes Workflow",
+    "guide_anchor": "102-workflow-for-api-changes"
   },
   {
     "day": 29,
@@ -585,7 +613,8 @@
       "cmd/install/"
     ],
     "explore_hint": "Try: bin/hypershift --help to see all available subcommands.",
-    "guide_section": "Section 10.3: Running Locally"
+    "guide_section": "Section 10.3: Running Locally",
+    "guide_anchor": "103-running-locally"
   },
   {
     "day": 30,
@@ -596,7 +625,7 @@
       "Upsert wraps CreateOrUpdate with loop detection to prevent infinite reconciliation",
       "Standard pattern: fetch -> deletion check -> finalizer -> reconcile -> status update",
       "CreateOrUpdateProvider interface injected into all controllers",
-      "All controllers follow the same structure — large or small",
+      "All controllers follow the same structure \u2014 large or small",
       "Compare HC controller (~5200 lines) vs HostedClusterSizing (much smaller)"
     ],
     "why_it_matters": "Reconciliation loops are a common bug in controller development. The upsert pattern prevents them. The standard structure means you can navigate any controller once you learn the pattern.",
@@ -606,15 +635,16 @@
       "hypershift-operator/controllers/hostedclustersizing/hostedclustersizing_controller.go"
     ],
     "explore_hint": "Read upsert.go, then compare the HC controller with the smaller HostedClusterSizing controller.",
-    "guide_section": "Section 11.1-11.2: Upsert & Controller Structure"
+    "guide_section": "Section 11.1-11.2: Upsert & Controller Structure",
+    "guide_anchor": "111-upsert-pattern"
   },
   {
     "day": 31,
     "title": "Test Conventions & API Backward Compatibility",
     "section": "11.3-11.4",
-    "about": "HyperShift follows strict conventions for tests and API safety. Test names use Gherkin syntax ('When X it should Y'), assertions use gomega. API changes must never break existing clusters — every field change must be safe for upgrades and rollbacks. These conventions are enforced in PR reviews.",
+    "about": "HyperShift follows strict conventions for tests and API safety. Test names use Gherkin syntax ('When X it should Y'), assertions use gomega. API changes must never break existing clusters \u2014 every field change must be safe for upgrades and rollbacks. These conventions are enforced in PR reviews.",
     "key_points": [
-      "Test names: Gherkin syntax — 'When <condition> it should <expected behavior>'",
+      "Test names: Gherkin syntax \u2014 'When <condition> it should <expected behavior>'",
       "Assertions: use gomega (Expect(x).To(Equal(y)))",
       "Unit tests: *_test.go alongside source; E2E in test/e2e/",
       "API: never remove/rename fields, always backward-safe",
@@ -627,13 +657,14 @@
       "api/hypershift/v1beta1/nodepool_types_test.go"
     ],
     "explore_hint": "Browse test/e2e/ for real E2E tests. Look at any *_test.go file for unit test examples.",
-    "guide_section": "Section 11.3-11.4: Tests & API Compatibility"
+    "guide_section": "Section 11.3-11.4: Tests & API Compatibility",
+    "guide_anchor": "113-test-conventions"
   },
   {
     "day": 32,
-    "title": "Architectural Invariants — The 8 Design Rules",
+    "title": "Architectural Invariants \u2014 The 8 Design Rules",
     "section": "12",
-    "about": "These 8 invariants are the 'constitution' of HyperShift — they are the rules that every design decision, PR review, and architecture choice is measured against. Violating them causes security issues, cascading failures, or upgrade breakage. Internalize them.",
+    "about": "These 8 invariants are the 'constitution' of HyperShift \u2014 they are the rules that every design decision, PR review, and architecture choice is measured against. Violating them causes security issues, cascading failures, or upgrade breakage. Internalize them.",
     "key_points": [
       "1. Communication only flows management -> hosted, NEVER reverse",
       "2. Workers only run user workloads + kubelet, konnectivity-agent, CNI",
@@ -649,18 +680,19 @@
       "hypershift-operator/controllers/hostedcluster/network_policies.go"
     ],
     "explore_hint": "Think about rule #8: why does the HO need to check CPO image labels before enabling features?",
-    "guide_section": "Section 12: Architectural Invariants"
+    "guide_section": "Section 12: Architectural Invariants",
+    "guide_anchor": "12-architectural-invariants"
   },
   {
     "day": 33,
-    "title": "Key File Reference — Your Navigation Map",
+    "title": "Key File Reference \u2014 Your Navigation Map",
     "section": "13",
-    "about": "The HyperShift codebase has ~65 key files organized into 8 categories: APIs, HO Controllers, CPO Controllers, Framework, Platforms, PKI/Ignition, CLI, and Tests. This is your codebase GPS — when you get a bug report or review a PR, this map tells you which files are relevant.",
+    "about": "The HyperShift codebase has ~65 key files organized into 8 categories: APIs, HO Controllers, CPO Controllers, Framework, Platforms, PKI/Ignition, CLI, and Tests. This is your codebase GPS \u2014 when you get a bug report or review a PR, this map tells you which files are relevant.",
     "key_points": [
-      "APIs: 12 key files — types, conditions, platform specs, feature gates",
-      "HO Controllers: 15 files — HC controller, NP controller + config/token/capi",
-      "CPO Controllers: 8 files — HCP controller, v2 components",
-      "Framework: 5 files — controlplane-component core, builder, status, upsert",
+      "APIs: 12 key files \u2014 types, conditions, platform specs, feature gates",
+      "HO Controllers: 15 files \u2014 HC controller, NP controller + config/token/capi",
+      "CPO Controllers: 8 files \u2014 HCP controller, v2 components",
+      "Framework: 5 files \u2014 controlplane-component core, builder, status, upsert",
       "Priority system: Must read (week 1-4), Good to know (week 5-6), Reference (as needed)"
     ],
     "why_it_matters": "This is your codebase GPS. When you get a bug report, this map tells you which file to open. Bookmark Section 13 in the onboarding guide for quick reference.",
@@ -671,19 +703,20 @@
       "support/controlplane-component/controlplane-component.go"
     ],
     "explore_hint": "Use the priority levels from Section 13: 'Must read' for month 1, 'Good to know' for month 2.",
-    "guide_section": "Section 13: Key File Reference"
+    "guide_section": "Section 13: Key File Reference",
+    "guide_anchor": "13-key-file-reference"
   },
   {
     "day": 34,
-    "title": "Learning Paths — Control Plane, Data Plane, Platform",
+    "title": "Learning Paths \u2014 Control Plane, Data Plane, Platform",
     "section": "14",
     "about": "After 7 weeks of daily topics, use these structured reading paths for deeper code-level understanding. Three paths: Control Plane (follow HC -> HCP -> CPO -> component), Data Plane (follow NP -> config -> token -> CAPI -> ignition), Platform (follow interface -> implementation -> CCM -> API types). Pick the one matching your work area.",
     "key_points": [
       "Control Plane path: 6 files, follow HC -> HCP -> CPO -> component",
       "Data Plane path: 6 files, follow NP -> config -> token -> CAPI -> ignition",
       "Platform path: 5 files, follow interface -> impl -> CCM -> API types",
-      "Each path builds understanding incrementally — read in order",
-      "Control plane path recommended first — HC -> HCP is 80% of the work"
+      "Each path builds understanding incrementally \u2014 read in order",
+      "Control plane path recommended first \u2014 HC -> HCP is 80% of the work"
     ],
     "why_it_matters": "Structured learning beats random exploration. After these daily topics, these paths give you a clear sequence for going deeper in your area of focus.",
     "code_paths": [
@@ -692,27 +725,29 @@
       "hypershift-operator/controllers/hostedcluster/internal/platform/platform.go"
     ],
     "explore_hint": "Pick the path matching your current work. The control plane path is recommended first.",
-    "guide_section": "Section 14: Recommended Learning Path"
+    "guide_section": "Section 14: Recommended Learning Path",
+    "guide_anchor": "14-recommended-learning-path"
   },
   {
     "day": 35,
-    "title": "Tips for New Team Members — Putting It All Together",
+    "title": "Tips for New Team Members \u2014 Putting It All Together",
     "section": "14",
-    "about": "Congratulations — you have completed the 7-week HyperShift onboarding journey! These 7 tips distill everything into actionable habits. The best way to solidify this knowledge now is to start contributing: pick a bug, write a fix, run make verify, and open your first PR.",
+    "about": "Congratulations \u2014 you have completed the 7-week HyperShift onboarding journey! These 7 tips distill everything into actionable habits. The best way to solidify this knowledge now is to start contributing: pick a bug, write a fix, run make verify, and open your first PR.",
     "key_points": [
-      "Tip 1: HC, HCP, NP — learn these CRDs deeply, they are 80% of the work",
+      "Tip 1: HC, HCP, NP \u2014 learn these CRDs deeply, they are 80% of the work",
       "Tip 2: Data flows HC->HCP->Components and NP->CAPI->Cloud->Node",
-      "Tip 3: .status.conditions tells you what is happening — always check them",
+      "Tip 3: .status.conditions tells you what is happening \u2014 always check them",
       "Tip 4: make verify before every push",
       "Tip 5: oc get pods -n clusters-<name> shows all CP components at a glance",
-      "Tip 6: Tests are the best docs — read *_test.go and test/e2e/",
+      "Tip 6: Tests are the best docs \u2014 read *_test.go and test/e2e/",
       "Tip 7: hypershift dump (cmd/dump/) captures full cluster state for debugging"
     ],
-    "why_it_matters": "You now have a mental map of the entire HyperShift codebase. Go build something! Start with a bug fix or small feature — the best way to learn is by doing.",
+    "why_it_matters": "You now have a mental map of the entire HyperShift codebase. Go build something! Start with a bug fix or small feature \u2014 the best way to learn is by doing.",
     "code_paths": [
       "cmd/dump/"
     ],
     "explore_hint": "This is the last daily topic! Pick a Jira bug and start contributing.",
-    "guide_section": "Section 14: Tips for New Team Members"
+    "guide_section": "Section 14: Tips for New Team Members",
+    "guide_anchor": "tips-for-new-team-members"
   }
 ]

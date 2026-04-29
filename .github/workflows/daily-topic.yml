@@ -55,6 +55,7 @@ jobs:
           WHY=$(echo "$TOPIC" | jq -r '.why_it_matters')
           SECTION=$(echo "$TOPIC" | jq -r '.guide_section')
           EXPLORE=$(echo "$TOPIC" | jq -r '.explore_hint')
+          ANCHOR=$(echo "$TOPIC" | jq -r '.guide_anchor')
 
           # Build key_points as bullet list
           KEY_POINTS=""
@@ -84,6 +85,7 @@ jobs:
           echo "$SECTION" > /tmp/section.txt
           echo "$EXPLORE" > /tmp/explore.txt
           echo -e "$CODE_PATHS" > /tmp/code_paths.txt
+          echo "$ANCHOR" > /tmp/anchor.txt
 
       - name: Post to Slack
         if: steps.topic.outputs.done != 'true'
@@ -99,6 +101,7 @@ jobs:
           SECTION=$(cat /tmp/section.txt)
           EXPLORE=$(cat /tmp/explore.txt)
           CODE_PATHS=$(cat /tmp/code_paths.txt)
+          ANCHOR=$(cat /tmp/anchor.txt)
 
           # Escape special characters for JSON
           escape_json() {
@@ -180,7 +183,7 @@ jobs:
                 "elements": [
                   {
                     "type": "mrkdwn",
-                    "text": ":open_book: ${SECTION_ESC} | Full guide: \`onboarding-guide.md\` in this repo"
+                    "text": ":open_book: <https://github.com/vsolanki12/hypershift-explorers-onboarding/blob/main/onboarding-guide.md#${ANCHOR}|${SECTION_ESC}> — click to read this section"
                   }
                 ]
               },
