@@ -1,0 +1,441 @@
+[
+  {
+    "day": 1,
+    "title": "What is HyperShift & Why It Exists",
+    "section": "1",
+    "summary": "HyperShift decouples the OpenShift control plane from worker nodes. Instead of 3+ dedicated master nodes per cluster, control planes run as pods on a shared management cluster. This cuts provisioning from 30-45 min to ~10-15 min and eliminates per-cluster master overhead.",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go"
+    ],
+    "explore_hint": "Compare the 'Standalone OpenShift' vs 'HyperShift Model' table in Section 1 of the onboarding guide. What does 'zero master nodes' mean for the guest cluster?",
+    "guide_section": "Section 1: What is HyperShift?"
+  },
+  {
+    "day": 2,
+    "title": "Core CRDs: HostedCluster, HostedControlPlane, NodePool",
+    "section": "2",
+    "summary": "Three CRDs define everything. HostedCluster (HC) is user-facing — it declares 'I want a cluster'. HostedControlPlane (HCP) is internal — the HC controller creates it in a dedicated namespace. NodePool (NP) is user-facing — it defines a scalable set of worker nodes referencing an HC.",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go",
+      "api/hypershift/v1beta1/hosted_controlplane.go",
+      "api/hypershift/v1beta1/nodepool_types.go"
+    ],
+    "explore_hint": "Open each of these three type files and compare their Spec structs. Notice how HCP spec mirrors HC spec — why would that be?",
+    "guide_section": "Section 2: Key Concepts"
+  },
+  {
+    "day": 3,
+    "title": "Glossary: Management Cluster, Guest Cluster, CP Namespace",
+    "section": "2",
+    "summary": "The management cluster hosts HyperShift operators and control plane pods. The guest cluster (hosted cluster) is what end users consume — it only has worker nodes. Each hosted cluster gets a dedicated CP namespace named '{hc-ns}-{hc-name}' where all control plane components live.",
+    "code_refs": [
+      "hypershift-operator/controllers/manifests/manifests.go",
+      "hypershift-operator/main.go"
+    ],
+    "explore_hint": "Read the HostedControlPlaneNamespace() function in manifests.go — it's a simple but critical naming convention used everywhere.",
+    "guide_section": "Section 2: Key Concepts — Glossary"
+  },
+  {
+    "day": 4,
+    "title": "Overall Architecture & Namespace Layout",
+    "section": "3",
+    "summary": "Three namespaces matter: 'hypershift' (where the HyperShift Operator runs), 'clusters' (user-facing, where HC and NP CRs live), and 'clusters-<name>' (auto-created CP namespace per hosted cluster). The HO watches HC/NP in 'clusters' and creates everything else in the CP namespace.",
+    "code_refs": [
+      "hypershift-operator/controllers/manifests/manifests.go",
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go"
+    ],
+    "explore_hint": "On a running cluster, try: oc get ns | grep clusters — you'll see the pattern. Then: oc get pods -n clusters-<name> to see all CP components.",
+    "guide_section": "Section 3: Overall Architecture"
+  },
+  {
+    "day": 5,
+    "title": "The Operator Hierarchy: HO -> CPO -> 40+ Components",
+    "section": "3-4",
+    "summary": "The HyperShift Operator (HO) watches HostedCluster and NodePool CRs. For each HC, it creates a CP namespace and deploys the Control Plane Operator (CPO). The CPO then reads the HostedControlPlane CR and reconciles ~40 control plane components: etcd, KAS, KCM, scheduler, and more.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go",
+      "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
+    ],
+    "explore_hint": "Look at the registerComponents() function (~line 236 in hostedcontrolplane_controller.go) to see the full list of ~40 components the CPO manages.",
+    "guide_section": "Section 3-4: Architecture & Main Components"
+  },
+  {
+    "day": 6,
+    "title": "HyperShift Operator (HO) — The 5 Controllers",
+    "section": "4.1",
+    "summary": "The HO contains 5 controllers: HostedCluster (manages full HC lifecycle), NodePool (manages CAPI machines and rolling upgrades), HostedClusterSizing (resource-based sizing), Scheduler (HC scheduling), and SharedIngress (shared ingress across HCs). The HC controller alone is ~5200 lines.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go",
+      "hypershift-operator/controllers/nodepool/nodepool_controller.go",
+      "hypershift-operator/controllers/hostedclustersizing/hostedclustersizing_controller.go",
+      "hypershift-operator/controllers/scheduler/util/scheduler.go",
+      "hypershift-operator/controllers/sharedingress/sharedingress_controller.go"
+    ],
+    "explore_hint": "Start with the Reconcile() method (~line 337) in the HC controller. Don't read all 5200 lines — follow the key sub-function calls: reconcileHostedControlPlane(), reconcileControlPlaneOperator(), reconcileCAPICluster().",
+    "guide_section": "Section 4.1: HyperShift Operator"
+  },
+  {
+    "day": 7,
+    "title": "Control Plane Operator (CPO) — Managing 40 Components",
+    "section": "4.2",
+    "summary": "One CPO instance runs per hosted cluster in its CP namespace. It reads the HostedControlPlane CR and deploys ~40 components: etcd, KAS, KCM, scheduler, oauth-server, CVO, CNO, CCM, konnectivity, and more. Components with no KAS dependency (etcd, PKI, featuregate-generator, router) start first.",
+    "code_refs": [
+      "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
+    ],
+    "explore_hint": "The component dependency graph is key. etcd and featuregate-generator have NO dependencies — they start first. KAS depends on both. Everything else depends on KAS. See the diagram in Section 6.2.",
+    "guide_section": "Section 4.2: Control Plane Operator"
+  },
+  {
+    "day": 8,
+    "title": "CPOv2 Framework — The Declarative Component Model",
+    "section": "4.3",
+    "summary": "CPOv2 is a declarative framework for defining control plane components using a builder pattern. Each component specifies its workload type, dependencies, predicates, and manifest adapters. The framework handles reconciliation, status tracking, and dependency ordering automatically.",
+    "code_refs": [
+      "support/controlplane-component/controlplane-component.go",
+      "support/controlplane-component/builder.go",
+      "support/controlplane-component/status.go",
+      "support/controlplane-component/deployment.go"
+    ],
+    "explore_hint": "Compare a simple component (v2/kube_scheduler/) with a complex one (v2/kas/) to see how the builder pattern scales. Assets (YAML manifests) live in v2/assets/<component>/.",
+    "guide_section": "Section 4.3: CPOv2 Framework"
+  },
+  {
+    "day": 9,
+    "title": "PKI Operator — Certificate Management",
+    "section": "4.4",
+    "summary": "The PKI operator manages all certificates for hosted clusters. It has 5 sub-controllers: CertRotation (rotates CAs and leaf certs), CertificateSigning (signs CSRs for break-glass access), CSR Approval (auto-approves known signers), CertRevocation, and TargetConfig. Supports Customer and SRE break-glass signers.",
+    "code_refs": [
+      "control-plane-pki-operator/operator.go",
+      "control-plane-pki-operator/certrotationcontroller/",
+      "control-plane-pki-operator/certificatesigningcontroller/"
+    ],
+    "explore_hint": "Start with operator.go to see how all sub-controllers are wired together. Then look at certificates/ for signer definitions.",
+    "guide_section": "Section 4.4: PKI Operator"
+  },
+  {
+    "day": 10,
+    "title": "Ignition Server — How Worker Nodes Bootstrap",
+    "section": "4.5",
+    "summary": "The Ignition Server is an HTTPS server that serves ignition configs to worker nodes during bootstrap. Flow: NodePool controller creates a token Secret -> Ignition Server generates payload using MCO -> Worker node boots, calls GET /ignition with its token -> Gets full ignition JSON -> Applies config, starts kubelet, joins the guest cluster.",
+    "code_refs": [
+      "ignition-server/cmd/start.go",
+      "ignition-server/controllers/tokensecret_controller.go",
+      "ignition-server/controllers/local_ignitionprovider.go",
+      "ignition-server/controllers/cache.go"
+    ],
+    "explore_hint": "Start with start.go to understand the HTTP handler, then follow the flow into tokensecret_controller.go. How does the ExpiringCache work?",
+    "guide_section": "Section 4.5: Ignition Server"
+  },
+  {
+    "day": 11,
+    "title": "HostedCluster Creation Flow",
+    "section": "5.1",
+    "summary": "When a user creates a HostedCluster CR: HO validates it -> creates CP namespace -> copies secrets (pull-secret, SSH, encryption) -> creates HostedControlPlane CR -> deploys CPO, CAPI Manager, Provider -> configures NetworkPolicies. Then CPO takes over: deploys etcd, KAS, +30 components. Finally, HO copies kubeconfig to the user namespace.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go",
+      "hypershift-operator/controllers/hostedcluster/network_policies.go"
+    ],
+    "explore_hint": "Follow the creation flow step by step: Reconcile() (~line 337) -> reconcileHostedControlPlane() (~line 2404) -> reconcileControlPlaneOperator() -> reconcileCAPIManager().",
+    "guide_section": "Section 5.1: Creation"
+  },
+  {
+    "day": 12,
+    "title": "Steady State & Upgrade Model",
+    "section": "5.2-5.3",
+    "summary": "In steady state: CPO continuously reconciles components against HCP spec, PKI operator rotates certificates, NodePool controller manages auto-repair and scaling. Upgrades are decoupled: change HC.spec.release for control plane upgrade (CPO deploys new versions), change NP.spec.release for data plane upgrade (triggers CAPI rolling update). They're independent.",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go",
+      "api/hypershift/v1beta1/nodepool_types.go"
+    ],
+    "explore_hint": "Look for the 'controlPlaneRelease' field — it allows patching management-side components without touching the data plane. NodePool releases can be updated independently within N-2 y-stream skew.",
+    "guide_section": "Section 5.2-5.3: Steady State & Upgrade"
+  },
+  {
+    "day": 13,
+    "title": "HostedCluster Deletion Flow",
+    "section": "5.4",
+    "summary": "Deletion is ordered: HO deletes CAPI Machines/MachineDeployments -> CAPI terminates cloud instances -> HO deletes HCP, waits for CPO cleanup -> HO cleans up cloud resources (LBs, DNS, SGs, endpoints) -> cleans up cluster-wide RBAC -> removes finalizer. Supports grace period via the destroy-grace-period annotation.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go"
+    ],
+    "explore_hint": "The deletion flow starts at r.delete() (~line 501). Notice the CloudResourcesDestroyed and HostedClusterDestroyed conditions — they track deletion progress.",
+    "guide_section": "Section 5.4: Deletion"
+  },
+  {
+    "day": 14,
+    "title": "CPO Reconciliation Flow — The Component Loop",
+    "section": "6.1",
+    "summary": "CPO reconciliation: Fetch HCP -> check deletion -> add finalizer -> validate config -> check etcd status -> validate KMS -> check KAS availability -> setup infra status -> reconcile ignition -> build ControlPlaneContext -> iterate all registered components. Each component checks its predicate and dependencies before reconciling.",
+    "code_refs": [
+      "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go"
+    ],
+    "explore_hint": "Find the component iteration loop at ~line 1232. It's a simple for-range over r.components calling c.Reconcile(cpContext). What happens when a component's dependency isn't ready?",
+    "guide_section": "Section 6.1: CPO Reconciliation Flow"
+  },
+  {
+    "day": 15,
+    "title": "Component Dependencies & Status Propagation",
+    "section": "6.2-6.3",
+    "summary": "KAS is an implicit dependency for ALL components except: etcd, featuregate-generator, CPO, cluster-api, capi-provider, karpenter, and router. Status flows upward: ControlPlaneComponent CRs (Available/RolloutComplete) -> HCP Status (EtcdAvailable, KubeAPIServerAvailable) -> HC Status (Available, Progressing, Degraded) -> visible to user.",
+    "code_refs": [
+      "support/controlplane-component/status.go",
+      "api/hypershift/v1beta1/hostedcluster_conditions.go",
+      "api/hypershift/v1beta1/nodepool_conditions.go"
+    ],
+    "explore_hint": "Read checkDependencies() in status.go (~line 50). Then look at hostedcluster_conditions.go to see all the condition types users can check.",
+    "guide_section": "Section 6.2-6.3: Dependencies & Status"
+  },
+  {
+    "day": 16,
+    "title": "NodePool — Key Fields That Drive Behavior",
+    "section": "7.1",
+    "summary": "Key NodePool fields: spec.clusterName (immutable HC reference), spec.release (change triggers rollout, has +rollout tag), spec.platform (AMI, instance type, etc.), spec.replicas/autoScaling (node count), spec.management.upgradeType (Replace or InPlace), spec.management.autoRepair (enables MachineHealthCheck), spec.config (MachineConfig refs, change triggers rollout).",
+    "code_refs": [
+      "api/hypershift/v1beta1/nodepool_types.go"
+    ],
+    "explore_hint": "Search for the +rollout tag in nodepool_types.go — fields with this tag trigger a rolling update when changed. Why is spec.clusterName immutable?",
+    "guide_section": "Section 7.1: NodePool Key Fields"
+  },
+  {
+    "day": 17,
+    "title": "Node Lifecycle — From NodePool to Running Worker",
+    "section": "7.2",
+    "summary": "Full flow: NodePool controller computes config hash -> creates token Secret (with UUID, release, config) -> creates userdata Secret (ignition stub with URL + token) -> creates MachineDeployment referencing userdata -> CAPI creates MachineSet -> Machine -> cloud instance boots -> fetches ignition via token -> applies config -> starts kubelet -> joins guest cluster.",
+    "code_refs": [
+      "hypershift-operator/controllers/nodepool/nodepool_controller.go",
+      "hypershift-operator/controllers/nodepool/config.go",
+      "hypershift-operator/controllers/nodepool/token.go",
+      "hypershift-operator/controllers/nodepool/capi.go"
+    ],
+    "explore_hint": "Read these 4 files in order: nodepool_controller.go (entry point) -> config.go (hash computation) -> token.go (secret lifecycle) -> capi.go (CAPI resource creation).",
+    "guide_section": "Section 7.2: Node Lifecycle"
+  },
+  {
+    "day": 18,
+    "title": "ClusterAPI Integration — The Resource Hierarchy",
+    "section": "7.3",
+    "summary": "HyperShift doesn't talk to cloud providers directly for node management — it uses CAPI. NodePool creates: MachineDeployment + PlatformMachineTemplate + MachineHealthCheck. CAPI then creates MachineSet -> Machine(s). The infra provider creates the actual cloud instances. Rollout detection: new config hash = new Secrets = new DataSecretName = CAPI rolling update.",
+    "code_refs": [
+      "hypershift-operator/controllers/nodepool/capi.go",
+      "hypershift-operator/controllers/nodepool/aws.go",
+      "hypershift-operator/controllers/nodepool/azure.go",
+      "hypershift-operator/controllers/nodepool/kubevirt/kubevirt.go"
+    ],
+    "explore_hint": "Look at awsMachineTemplateSpec() in aws.go to see how AMI resolution, instance type, root volume, and security groups are configured for AWS machines.",
+    "guide_section": "Section 7.3: ClusterAPI Integration"
+  },
+  {
+    "day": 19,
+    "title": "Auto-scaling & Auto-repair",
+    "section": "7.4-7.5",
+    "summary": "Auto-scaling modes: Manual (spec.replicas), Cluster Autoscaler (spec.autoScaling.min/max via CAPI annotations), Scale-from-zero (AWS only, capacity annotations), Karpenter (bypasses MachineDeployments, provisions based on pending pods). Auto-repair: MachineHealthCheck detects NodeReady=False for 8 min (cloud) or 16 min (agent), deletes machine, CAPI creates replacement. MaxUnhealthy=2 prevents cascade.",
+    "code_refs": [
+      "hypershift-operator/controllers/nodepool/capi.go",
+      "hypershift-operator/controllers/nodepool/scale_from_zero.go",
+      "karpenter-operator/controllers/karpenter/karpenter_controller.go"
+    ],
+    "explore_hint": "Find reconcileMachineHealthCheck() in capi.go (~line 649). Note the different timeouts for cloud (8 min) vs Agent/None (16 min) platforms.",
+    "guide_section": "Section 7.4-7.5: Auto-scaling & Auto-repair"
+  },
+  {
+    "day": 20,
+    "title": "Platform Interface — How HyperShift Abstracts Cloud Providers",
+    "section": "8",
+    "summary": "Every cloud platform implements the Platform interface: ReconcileCAPIInfraCR(), CAPIProviderDeploymentSpec(), ReconcileCredentials(), ReconcileSecretEncryption(), CAPIProviderPolicyRules(), DeleteCredentials(). Platform dispatch happens in GetPlatform(). Supported: AWS (self-managed + ROSA HCP), Azure (self-managed + ARO HCP), KubeVirt, Agent, GCP, OpenStack, IBM Cloud/PowerVS.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/internal/platform/platform.go"
+    ],
+    "explore_hint": "Read the Platform interface definition and then GetPlatform() (~line 91) to see how the right implementation is selected based on HC.spec.platform.type.",
+    "guide_section": "Section 8: Supported Cloud Platforms"
+  },
+  {
+    "day": 21,
+    "title": "AWS Platform Deep Dive — Infrastructure & IAM",
+    "section": "8",
+    "summary": "AWS infra includes: VPC, public/private subnets per zone, NAT/Internet gateways, Route53 zones (public + private), S3 OIDC bucket, and 6+ IAM roles via STS (CCM, CAPA, CPO, EBS CSI, cloud-network-config, image-registry). OIDC provider trusts these roles. Private clusters use VPC PrivateLink via AWSEndpointServiceReconciler.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/internal/platform/aws/aws.go",
+      "cmd/infra/aws/create.go",
+      "cmd/infra/aws/iam.go",
+      "api/hypershift/v1beta1/aws.go"
+    ],
+    "explore_hint": "Look at AWSRolesRef (line 512 in aws.go) to see all the IAM role ARNs that must be provided. Then check CreateInfra() in cmd/infra/aws/create.go (~line 191) for the full provisioning sequence.",
+    "guide_section": "Section 8: AWS Infrastructure"
+  },
+  {
+    "day": 22,
+    "title": "KubeVirt Platform — Nested Virtualization",
+    "section": "8",
+    "summary": "KubeVirt runs guest cluster workers as VMs on a Kubernetes cluster. The management cluster hosts CP pods, while an infra cluster (can be the same cluster) hosts KubeVirt VMs as worker nodes. CDI DataVolumes provide root disks. When KubevirtPlatformCredentials is set, VMs can run on an external infra cluster separate from the management cluster.",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/internal/platform/kubevirt/kubevirt.go",
+      "hypershift-operator/controllers/nodepool/kubevirt/kubevirt.go",
+      "control-plane-operator/controllers/hostedcontrolplane/v2/cloud_controller_manager/kubevirt/"
+    ],
+    "explore_hint": "Compare the KubeVirt platform implementation with the AWS one — notice how the Platform interface lets both share the same controller flow.",
+    "guide_section": "Section 8: KubeVirt"
+  },
+  {
+    "day": 23,
+    "title": "Cloud Controller Managers & Credential Management",
+    "section": "8",
+    "summary": "Each platform's CCM is a CPOv2 component at v2/cloud_controller_manager/<platform>/component.go. Credentials flow: User provides cloud credential secret in user namespace -> HO ReconcileCredentials() copies it to CP namespace -> CPO components (KAS, CCM, CSI, etc.) mount it. Cloud provider config is generated per-platform.",
+    "code_refs": [
+      "control-plane-operator/controllers/hostedcontrolplane/v2/cloud_controller_manager/aws/component.go",
+      "control-plane-operator/controllers/hostedcontrolplane/cloud/aws/providerconfig.go",
+      "control-plane-operator/controllers/hostedcontrolplane/cloud/azure/providerconfig.go"
+    ],
+    "explore_hint": "Compare the AWS CCM component with the KubeVirt CCM component to see how the CPOv2 framework handles different platforms with the same builder pattern.",
+    "guide_section": "Section 8: Cloud Controller Managers & Credentials"
+  },
+  {
+    "day": 24,
+    "title": "Multi-Module Structure — api/ Is a Separate Go Module",
+    "section": "9.1",
+    "summary": "The repo has TWO Go modules: the root module (github.com/openshift/hypershift) and api/ (github.com/openshift/hypershift/api) with its own go.mod. The root module consumes api/ through vendoring. GOLDEN RULE: after ANY change in api/, run 'make update' (api-deps -> workspace-sync -> deps -> api -> api-docs -> clients -> docs-aggregate).",
+    "code_refs": [
+      "api/go.mod",
+      "hack/workspace/go.work"
+    ],
+    "explore_hint": "Read api/CLAUDE.md — it has critical API backward compatibility rules. New symbols added in api/ won't be visible to the main module until you run 'make update'.",
+    "guide_section": "Section 9.1: Multi-Module Structure"
+  },
+  {
+    "day": 25,
+    "title": "Main API Types — HostedCluster, HCP, NodePool, ControlPlaneComponent",
+    "section": "9.2",
+    "summary": "HostedCluster (user-facing, in user namespace) -> HostedControlPlane (internal, in CP namespace, created by HC controller) -> ControlPlaneComponent (internal, per-component status). NodePool (user-facing, in user namespace) -> MachineDeployment -> MachineSet -> Machine (all CAPI resources in CP namespace).",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go",
+      "api/hypershift/v1beta1/hosted_controlplane.go",
+      "api/hypershift/v1beta1/nodepool_types.go",
+      "api/hypershift/v1beta1/controlplanecomponent_types.go"
+    ],
+    "explore_hint": "In hostedcluster_types.go, HostedClusterSpec starts at ~line 529 and HostedClusterStatus at ~line 2105. Skim the Spec first to understand what users can configure.",
+    "guide_section": "Section 9.2: Main API Types"
+  },
+  {
+    "day": 26,
+    "title": "Feature Gates & Key Annotations",
+    "section": "9.3-9.4",
+    "summary": "Feature gates control which API fields and CRD types are available (e.g., +openshift:enable:FeatureGate=AutoNodeKarpenter). Defined in api/hypershift/v1beta1/featuregates/. Key annotations include: control-plane-operator-image (override CPO), restart-date (rolling restart), force-upgrade-to, disable-pki-reconciliation, resource-request-override, topology, cleanup-cloud-resources.",
+    "code_refs": [
+      "api/hypershift/v1beta1/featuregates/featureGate-Hypershift-Default.yaml",
+      "api/hypershift/v1beta1/hostedcluster_types.go"
+    ],
+    "explore_hint": "Read the annotation constants block at the top of hostedcluster_types.go (lines 29-449). Each has a comment explaining its purpose. These are powerful operational levers.",
+    "guide_section": "Section 9.3-9.4: Feature Gates & Annotations"
+  },
+  {
+    "day": 27,
+    "title": "Essential Development Commands",
+    "section": "10.1",
+    "summary": "Build: make build (all), make hypershift (CLI), make hypershift-operator, make control-plane-operator. Test: make test (unit + race), make e2e (E2E binaries). Quality: make verify (ALWAYS before PR), make lint, make lint-fix, make fmt, make vet. API: make update (after api/ changes), make api (CRDs only), make generate, make clients.",
+    "code_refs": [
+      "Makefile"
+    ],
+    "explore_hint": "Run 'make verify' on a clean checkout to see what it checks. It runs: generate, fmt, vet, lint, codespell, gitlint. This is what CI runs on your PR.",
+    "guide_section": "Section 10.1: Essential Commands"
+  },
+  {
+    "day": 28,
+    "title": "Workflow for API Changes",
+    "section": "10.2",
+    "summary": "Workflow: Edit types in api/hypershift/v1beta1/ -> make update -> make verify -> if field type changed, add serialization compatibility test -> make test -> create PR. The serialization test pattern: define an N-1 struct and verify JSON round-trip compatibility to ensure backward safety.",
+    "code_refs": [
+      "api/hypershift/v1beta1/nodepool_types_test.go"
+    ],
+    "explore_hint": "Look at nodepool_types_test.go for the serialization compatibility test pattern. It ensures API changes are safe for N+1 (forward) and N-1 (rollback) compatibility.",
+    "guide_section": "Section 10.2: API Changes Workflow"
+  },
+  {
+    "day": 29,
+    "title": "Running Locally & CLI Structure",
+    "section": "10.3",
+    "summary": "Run locally: make hypershift-install-aws-dev (install) -> make run-operator-locally-aws-dev (run operator). CLI is built from main.go at repo root. Subcommands: cmd/cluster/ (create/destroy cluster), cmd/nodepool/ (create/destroy nodepool), cmd/install/ (install command + CRD assets), cmd/infra/ (per-platform infra creation).",
+    "code_refs": [
+      "main.go",
+      "cmd/cluster/",
+      "cmd/nodepool/",
+      "cmd/install/",
+      "cmd/infra/"
+    ],
+    "explore_hint": "Try: bin/hypershift --help to see all available subcommands. Then look at cmd/install/assets/hypershift-operator/ for the actual CRD YAML files that get installed.",
+    "guide_section": "Section 10.3: Running Locally"
+  },
+  {
+    "day": 30,
+    "title": "Upsert Pattern & Controller Structure",
+    "section": "11.1-11.2",
+    "summary": "The Upsert pattern (support/upsert/upsert.go) wraps CreateOrUpdate to prevent reconciliation loops by copying server-defaulted fields. Standard controller structure: Fetch resource -> Handle deletion -> Add finalizer -> Reconcile sub-resources -> Update status. The CreateOrUpdateProvider interface is injected via SetupWithManager.",
+    "code_refs": [
+      "support/upsert/upsert.go",
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go",
+      "hypershift-operator/controllers/hostedclustersizing/hostedclustersizing_controller.go"
+    ],
+    "explore_hint": "Read upsert.go to understand the loop detection mechanism. Then compare a large controller (HC ~5200 lines) with a small one (HostedClusterSizing) — they follow the same pattern.",
+    "guide_section": "Section 11.1-11.2: Upsert & Controller Structure"
+  },
+  {
+    "day": 31,
+    "title": "Test Conventions & API Backward Compatibility",
+    "section": "11.3-11.4",
+    "summary": "Test conventions: Gherkin syntax for names ('When X it should Y'), gomega for assertions, unit tests alongside source, E2E in test/e2e/, integration in test/integration/. API rules: every change must be safe for N+1 and N-1 compatibility, never remove/rename fields, int32 -> *int32 requires omitempty, always add serialization tests for type changes.",
+    "code_refs": [
+      "test/e2e/",
+      "test/integration/",
+      "api/hypershift/v1beta1/nodepool_types_test.go"
+    ],
+    "explore_hint": "Browse test/e2e/ to see real E2E tests covering cluster lifecycle, nodepool operations, and upgrades. Unit test examples are in any *_test.go file alongside the source.",
+    "guide_section": "Section 11.3-11.4: Tests & API Compatibility"
+  },
+  {
+    "day": 32,
+    "title": "Architectural Invariants — The 8 Design Rules",
+    "section": "12",
+    "summary": "8 rules that inform every decision: 1) Unidirectional communication (mgmt->hosted, never reverse). 2) Pristine workers (only user workloads + minimal agents). 3) No mutable CRDs exposed to guest. 4) Data plane changes don't trigger mgmt-side lifecycle. 5) No user credential management. 6) Namespace isolation via NetworkPolicies. 7) Decoupled upgrade signals. 8) CPO backward compatibility (HO may deploy older CPO).",
+    "code_refs": [
+      "hypershift-operator/controllers/hostedcluster/network_policies.go"
+    ],
+    "explore_hint": "Rule #8 is subtle: the HO checks CPO image labels before enabling features (controlPlanePKIOperatorSignsCSRs, useRestrictedPSA, defaultToControlPlaneV2). Why is this necessary?",
+    "guide_section": "Section 12: Architectural Invariants"
+  },
+  {
+    "day": 33,
+    "title": "Key File Reference — Your Navigation Map",
+    "section": "13",
+    "summary": "The codebase has ~65 key files across 8 categories: APIs (hostedcluster_types.go, nodepool_types.go, conditions), HO Controllers (HC controller, NP controller + config/token/capi), CPO Controllers (HCP controller, v2 components), Framework (controlplane-component, upsert), Platform implementations, PKI/Ignition, CLI/infra, Tests.",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go",
+      "hypershift-operator/controllers/hostedcluster/hostedcluster_controller.go",
+      "control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go",
+      "support/controlplane-component/controlplane-component.go"
+    ],
+    "explore_hint": "Use the priority levels from Section 13: 'Must read' files for your first month, 'Good to know' for month 2, 'Platform-specific' when doing cloud work, 'Reference' as needed.",
+    "guide_section": "Section 13: Key File Reference"
+  },
+  {
+    "day": 34,
+    "title": "Learning Paths — Control Plane, Data Plane, Platform",
+    "section": "14",
+    "summary": "Three learning paths: Control Plane (HC types -> HCP types -> HC controller Reconcile -> CPO controller + registerComponents -> CPOv2 framework -> kube-scheduler component). Data Plane (NP types -> NP controller -> config.go hash -> token.go secrets -> capi.go resources -> ignition-server). Platform (Platform interface -> your platform impl -> NP platform file -> CCM component -> API types).",
+    "code_refs": [
+      "api/hypershift/v1beta1/hostedcluster_types.go",
+      "api/hypershift/v1beta1/nodepool_types.go",
+      "hypershift-operator/controllers/hostedcluster/internal/platform/platform.go"
+    ],
+    "explore_hint": "Pick the path that matches your current work. Each path is 5-6 files read in order. The control plane path is recommended first — understanding HC -> HCP is 80% of the work.",
+    "guide_section": "Section 14: Recommended Learning Path"
+  },
+  {
+    "day": 35,
+    "title": "Tips for New Team Members — Putting It All Together",
+    "section": "14",
+    "summary": "7 tips: 1) Start with the CRDs — understanding HC, HCP, NP is 80% of the work. 2) Follow the data flow: HC->HCP->Components, NP->CAPI->Cloud->Node. 3) Conditions are your friend — always check .status.conditions. 4) make verify before pushing — always. 5) The CP namespace is where the magic happens — oc get pods -n clusters-<name>. 6) Read the tests — they're the best living documentation. 7) Use 'hypershift dump' (cmd/dump/) for full cluster state diagnostics.",
+    "code_refs": [
+      "cmd/dump/"
+    ],
+    "explore_hint": "This is the last daily topic! You now have a mental map of the entire HyperShift codebase. Go build something! Start with a bug fix or small feature — the best way to learn is by doing.",
+    "guide_section": "Section 14: Tips for New Team Members"
+  }
+]

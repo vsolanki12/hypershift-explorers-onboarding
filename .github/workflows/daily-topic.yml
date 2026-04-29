@@ -1,0 +1,176 @@
+name: Daily HyperShift Onboarding Topic
+
+on:
+  schedule:
+    # 9:00 AM UTC, Monday-Friday
+    # Adjust to your team's timezone:
+    #   UTC+5:30 (IST) -> use "30 3 * * 1-5" for 9:00 AM IST
+    #   UTC-5   (EST) -> use "0 14 * * 1-5" for 9:00 AM EST
+    - cron: '3 9 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      topic_number:
+        description: 'Override topic number (1-35). Leave empty to use counter.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  post-topic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read counter and pick topic
+        id: topic
+        run: |
+          COUNTER_FILE=".topic-counter"
+          TOPICS_FILE="daily-topics.json"
+          TOTAL_TOPICS=$(jq length "$TOPICS_FILE")
+
+          # Use manual override if provided
+          if [ -n "${{ github.event.inputs.topic_number }}" ]; then
+            CURRENT=$(( ${{ github.event.inputs.topic_number }} - 1 ))
+          else
+            CURRENT=$(cat "$COUNTER_FILE" 2>/dev/null || echo "0")
+          fi
+
+          # Stop after all topics are done
+          if [ "$CURRENT" -ge "$TOTAL_TOPICS" ]; then
+            echo "All $TOTAL_TOPICS topics have been posted. Workflow complete."
+            echo "done=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Extract topic
+          TOPIC=$(jq -r ".[$CURRENT]" "$TOPICS_FILE")
+          DAY=$(echo "$TOPIC" | jq -r '.day')
+          TITLE=$(echo "$TOPIC" | jq -r '.title')
+          SUMMARY=$(echo "$TOPIC" | jq -r '.summary')
+          SECTION=$(echo "$TOPIC" | jq -r '.guide_section')
+          EXPLORE=$(echo "$TOPIC" | jq -r '.explore_hint')
+
+          # Build code refs as GitHub links
+          CODE_REFS=""
+          for ref in $(echo "$TOPIC" | jq -r '.code_refs[]'); do
+            CODE_REFS="${CODE_REFS}\n• <https://github.com/openshift/hypershift/blob/main/${ref}|${ref}>"
+          done
+
+          # Export for next step
+          {
+            echo "done=false"
+            echo "day=$DAY"
+            echo "total=$TOTAL_TOPICS"
+            echo "next_counter=$((CURRENT + 1))"
+          } >> "$GITHUB_OUTPUT"
+
+          # Write multi-line values to files to preserve formatting
+          echo "$TITLE" > /tmp/title.txt
+          echo "$SUMMARY" > /tmp/summary.txt
+          echo "$SECTION" > /tmp/section.txt
+          echo "$EXPLORE" > /tmp/explore.txt
+          echo -e "$CODE_REFS" > /tmp/code_refs.txt
+
+      - name: Post to Slack
+        if: steps.topic.outputs.done != 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          DAY="${{ steps.topic.outputs.day }}"
+          TOTAL="${{ steps.topic.outputs.total }}"
+          TITLE=$(cat /tmp/title.txt)
+          SUMMARY=$(cat /tmp/summary.txt)
+          SECTION=$(cat /tmp/section.txt)
+          EXPLORE=$(cat /tmp/explore.txt)
+          CODE_REFS=$(cat /tmp/code_refs.txt)
+
+          # Build Slack message payload
+          cat > /tmp/slack-payload.json <<SLACKEOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": ":books: HyperShift Onboarding — Day ${DAY}/${TOTAL}",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*${TITLE}*"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "${SUMMARY}"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":mag: *Explore:*${CODE_REFS}"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":bulb: *Try this:* ${EXPLORE}"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": ":open_book: Full details: <https://github.com/openshift/hypershift/blob/main/docs/content/reference/onboarding-guide.md|onboarding-guide.md> — ${SECTION}"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              }
+            ]
+          }
+          SLACKEOF
+
+          # Post to Slack
+          HTTP_CODE=$(curl -s -o /tmp/slack-response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d @/tmp/slack-payload.json \
+            "$SLACK_WEBHOOK_URL")
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Slack post failed with HTTP $HTTP_CODE"
+            cat /tmp/slack-response.txt
+            exit 1
+          fi
+
+          echo "Posted Day ${DAY}/${TOTAL}: ${TITLE}"
+
+      - name: Bump counter
+        if: steps.topic.outputs.done != 'true'
+        run: |
+          echo "${{ steps.topic.outputs.next_counter }}" > .topic-counter
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .topic-counter
+          git commit -m "chore: bump topic counter to day ${{ steps.topic.outputs.next_counter }}"
+          git push
+
+      - name: Disable workflow after completion
+        if: steps.topic.outputs.done == 'true'
+        run: |
+          echo "All topics posted. To restart, reset .topic-counter to 0."

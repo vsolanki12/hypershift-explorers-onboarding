@@ -1,0 +1,41 @@
+# Sensitive configuration
+.config/
+*.conf
+
+# Logs and generated files
+sync-check.log
+validation-issues.md
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal notes
+TODO.md
+personal-notes.md
+scratch/
+
+# Test files
+test_*.md
+.test/
+
+# MCP test outputs
+test_mcp_output.txt
