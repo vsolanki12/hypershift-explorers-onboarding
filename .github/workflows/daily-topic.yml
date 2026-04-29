@@ -180,7 +180,7 @@ jobs:
                 "elements": [
                   {
                     "type": "mrkdwn",
-                    "text": ":open_book: ${SECTION_ESC}"
+                    "text": ":open_book: ${SECTION_ESC} | Full guide: \`onboarding-guide.md\` in this repo"
                   }
                 ]
               },
