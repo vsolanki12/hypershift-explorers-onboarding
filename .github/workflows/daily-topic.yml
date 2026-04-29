@@ -51,15 +51,22 @@ jobs:
           TOPIC=$(jq -r ".[$CURRENT]" "$TOPICS_FILE")
           DAY=$(echo "$TOPIC" | jq -r '.day')
           TITLE=$(echo "$TOPIC" | jq -r '.title')
-          SUMMARY=$(echo "$TOPIC" | jq -r '.summary')
+          ABOUT=$(echo "$TOPIC" | jq -r '.about')
+          WHY=$(echo "$TOPIC" | jq -r '.why_it_matters')
           SECTION=$(echo "$TOPIC" | jq -r '.guide_section')
           EXPLORE=$(echo "$TOPIC" | jq -r '.explore_hint')
 
-          # Build code refs as GitHub links
-          CODE_REFS=""
-          for ref in $(echo "$TOPIC" | jq -r '.code_refs[]'); do
-            CODE_REFS="${CODE_REFS}\n• <https://github.com/openshift/hypershift/blob/main/${ref}|${ref}>"
-          done
+          # Build key_points as bullet list
+          KEY_POINTS=""
+          while IFS= read -r point; do
+            KEY_POINTS="${KEY_POINTS}• ${point}\n"
+          done < <(echo "$TOPIC" | jq -r '.key_points[]')
+
+          # Build code_paths as plain text list
+          CODE_PATHS=""
+          while IFS= read -r path; do
+            CODE_PATHS="${CODE_PATHS}• \`${path}\`\n"
+          done < <(echo "$TOPIC" | jq -r '.code_paths[]')
 
           # Export for next step
           {
@@ -71,10 +78,12 @@ jobs:
 
           # Write multi-line values to files to preserve formatting
           echo "$TITLE" > /tmp/title.txt
-          echo "$SUMMARY" > /tmp/summary.txt
+          echo "$ABOUT" > /tmp/about.txt
+          echo -e "$KEY_POINTS" > /tmp/key_points.txt
+          echo "$WHY" > /tmp/why.txt
           echo "$SECTION" > /tmp/section.txt
           echo "$EXPLORE" > /tmp/explore.txt
-          echo -e "$CODE_REFS" > /tmp/code_refs.txt
+          echo -e "$CODE_PATHS" > /tmp/code_paths.txt
 
       - name: Post to Slack
         if: steps.topic.outputs.done != 'true'
@@ -84,10 +93,30 @@ jobs:
           DAY="${{ steps.topic.outputs.day }}"
           TOTAL="${{ steps.topic.outputs.total }}"
           TITLE=$(cat /tmp/title.txt)
-          SUMMARY=$(cat /tmp/summary.txt)
+          ABOUT=$(cat /tmp/about.txt)
+          KEY_POINTS=$(cat /tmp/key_points.txt)
+          WHY=$(cat /tmp/why.txt)
           SECTION=$(cat /tmp/section.txt)
           EXPLORE=$(cat /tmp/explore.txt)
-          CODE_REFS=$(cat /tmp/code_refs.txt)
+          CODE_PATHS=$(cat /tmp/code_paths.txt)
+
+          # Escape special characters for JSON
+          escape_json() {
+            local s="$1"
+            s="${s//\\/\\\\}"
+            s="${s//\"/\\\"}"
+            s="${s//$'\n'/\\n}"
+            s="${s//$'\t'/\\t}"
+            echo "$s"
+          }
+
+          TITLE_ESC=$(escape_json "$TITLE")
+          ABOUT_ESC=$(escape_json "$ABOUT")
+          KEY_POINTS_ESC=$(escape_json "$KEY_POINTS")
+          WHY_ESC=$(escape_json "$WHY")
+          SECTION_ESC=$(escape_json "$SECTION")
+          EXPLORE_ESC=$(escape_json "$EXPLORE")
+          CODE_PATHS_ESC=$(escape_json "$CODE_PATHS")
 
           # Build Slack message payload
           cat > /tmp/slack-payload.json <<SLACKEOF
@@ -105,28 +134,45 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "*${TITLE}*"
+                  "text": "*${TITLE_ESC}*"
                 }
               },
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${SUMMARY}"
+                  "text": "${ABOUT_ESC}"
+                }
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":pushpin: *Key Points:*\n${KEY_POINTS_ESC}"
                 }
               },
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ":mag: *Explore:*${CODE_REFS}"
+                  "text": ":dart: *Why It Matters:*\n${WHY_ESC}"
                 }
               },
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ":bulb: *Try this:* ${EXPLORE}"
+                  "text": ":file_folder: *Code Paths:*\n${CODE_PATHS_ESC}"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":bulb: *Try this:* ${EXPLORE_ESC}"
                 }
               },
               {
@@ -134,7 +180,7 @@ jobs:
                 "elements": [
                   {
                     "type": "mrkdwn",
-                    "text": ":open_book: Full details: <https://github.com/openshift/hypershift/blob/main/docs/content/reference/onboarding-guide.md|onboarding-guide.md> — ${SECTION}"
+                    "text": ":open_book: ${SECTION_ESC}"
                   }
                 ]
               },
