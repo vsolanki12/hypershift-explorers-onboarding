@@ -26,7 +26,20 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check for holidays
+        id: holiday
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          if jq -e ". | index(\"$TODAY\")" holidays.json > /dev/null 2>&1; then
+            echo "Today ($TODAY) is a holiday. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not a holiday ($TODAY). Proceeding."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Read counter and pick topic
+        if: steps.holiday.outputs.skip != 'true'
         id: topic
         run: |
           COUNTER_FILE=".topic-counter"
@@ -88,7 +101,7 @@ jobs:
           echo "$ANCHOR" > /tmp/anchor.txt
 
       - name: Post to Slack
-        if: steps.topic.outputs.done != 'true'
+        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         run: |
@@ -210,7 +223,7 @@ jobs:
           echo "Posted Day ${DAY}/${TOTAL}: ${TITLE}"
 
       - name: Bump counter
-        if: steps.topic.outputs.done != 'true'
+        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
         run: |
           echo "${{ steps.topic.outputs.next_counter }}" > .topic-counter
           git config user.name "github-actions[bot]"
@@ -220,6 +233,6 @@ jobs:
           git push
 
       - name: Disable workflow after completion
-        if: steps.topic.outputs.done == 'true'
+        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done == 'true'
         run: |
           echo "All topics posted. To restart, reset .topic-counter to 0."
