@@ -6,7 +6,7 @@ on:
     # Adjust to your team's timezone:
     #   UTC+5:30 (IST) -> use "30 3 * * 1-5" for 9:00 AM IST
     #   UTC-5   (EST) -> use "0 14 * * 1-5" for 9:00 AM EST
-    - cron: '28 7 * * *'
+    - cron: '05 1 * * *'
   workflow_dispatch:
     inputs:
       topic_number:
