@@ -2,11 +2,12 @@ name: Daily HyperShift Onboarding Topic
 
 on:
   schedule:
-    # 9:00 AM UTC, Monday-Friday
-    # Adjust to your team's timezone:
-    #   UTC+5:30 (IST) -> use "30 3 * * 1-5" for 9:00 AM IST
-    #   UTC-5   (EST) -> use "0 14 * * 1-5" for 9:00 AM EST
+    # Primary: 11:15 AM IST (5:45 AM UTC)
     - cron: '45 5 * * 1-5'
+    # Backup: 11:45 AM IST (6:15 AM UTC) — catches missed primary run
+    - cron: '15 6 * * 1-5'
+    # Keepalive: runs daily to prevent GitHub from disabling the scheduler
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       topic_number:
@@ -26,7 +27,32 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Keepalive commit
+        if: github.event.schedule == '0 4 * * *'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive [skip ci]"
+          git push
+          echo "Keepalive done. Exiting."
+
+      - name: Check if already posted today
+        if: github.event.schedule != '0 4 * * *'
+        id: dedup
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+
+          # Check if .last-posted matches today
+          LAST_POSTED=$(cat .last-posted 2>/dev/null || echo "never")
+          if [ "$LAST_POSTED" = "$TODAY" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Already posted today ($TODAY). Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check for holidays
+        if: github.event.schedule != '0 4 * * *' && steps.dedup.outputs.skip != 'true'
         id: holiday
         run: |
           TODAY=$(date -u +%Y-%m-%d)
@@ -39,7 +65,7 @@ jobs:
           fi
 
       - name: Read counter and pick topic
-        if: steps.holiday.outputs.skip != 'true'
+        if: github.event.schedule != '0 4 * * *' && steps.dedup.outputs.skip != 'true' && steps.holiday.outputs.skip != 'true'
         id: topic
         run: |
           COUNTER_FILE=".topic-counter"
@@ -101,7 +127,7 @@ jobs:
           echo "$ANCHOR" > /tmp/anchor.txt
 
       - name: Post to Slack
-        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
+        if: github.event.schedule != '0 4 * * *' && steps.dedup.outputs.skip != 'true' && steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         run: |
@@ -222,17 +248,18 @@ jobs:
 
           echo "Posted Day ${DAY}/${TOTAL}: ${TITLE}"
 
-      - name: Bump counter
-        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
+      - name: Bump counter and mark posted
+        if: github.event.schedule != '0 4 * * *' && steps.dedup.outputs.skip != 'true' && steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done != 'true'
         run: |
           echo "${{ steps.topic.outputs.next_counter }}" > .topic-counter
+          date -u +%Y-%m-%d > .last-posted
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .topic-counter
+          git add .topic-counter .last-posted
           git commit -m "chore: bump topic counter to day ${{ steps.topic.outputs.next_counter }}"
           git push
 
       - name: Disable workflow after completion
-        if: steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done == 'true'
+        if: github.event.schedule != '0 4 * * *' && steps.dedup.outputs.skip != 'true' && steps.holiday.outputs.skip != 'true' && steps.topic.outputs.done == 'true'
         run: |
           echo "All topics posted. To restart, reset .topic-counter to 0."
